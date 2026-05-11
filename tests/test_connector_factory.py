@@ -4,7 +4,7 @@ from app.connectors.factory import ConnectorFactory
 from app.connectors.gdelt import GdeltDocConnector
 from app.connectors.newsapi import NewsApiConnector
 from app.connectors.rss import RssSearchConnector
-from app.connectors.trends import PytrendsModernConnector
+from app.connectors.trends import DataForSeoTrendsConnector
 from app.core.settings import Settings
 from db.enums import SourceType
 from db.models import Source
@@ -37,7 +37,7 @@ class ConnectorFactoryTest(unittest.TestCase):
             factory.create(source(None)),
         ]
 
-        self.assertIsInstance(connectors[0], PytrendsModernConnector)
+        self.assertIsInstance(connectors[0], DataForSeoTrendsConnector)
         self.assertIsInstance(connectors[1], GdeltDocConnector)
         self.assertIsInstance(connectors[2], NewsApiConnector)
         self.assertIsInstance(connectors[3], RssSearchConnector)
