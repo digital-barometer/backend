@@ -28,8 +28,16 @@ class PytrendsModernConnector:
         proxies = None
         if self._proxy_url:
             proxies = {"http": self._proxy_url, "https": self._proxy_url}
+            requests_args = None
+        else:
+            requests_args = {"proxies": {"http": None, "https": None, "all": None}}
 
-        pytrends = TrendReq(hl="ru-RU", tz=180, proxies=proxies)
+        pytrends = TrendReq(
+            hl="ru-RU",
+            tz=180,
+            proxies=proxies,
+            requests_args=requests_args,
+        )
         pytrends.build_payload(
             kw_list=[query],
             timeframe=timeframe,

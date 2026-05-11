@@ -38,6 +38,7 @@ class NewsApiConnector:
         async with httpx.AsyncClient(
             timeout=self._timeout_seconds,
             follow_redirects=True,
+            trust_env=False,
             headers={
                 "User-Agent": "digital-barometer/0.1",
                 "X-Api-Key": self._api_key,

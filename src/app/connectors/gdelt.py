@@ -26,6 +26,7 @@ class GdeltDocConnector:
         async with httpx.AsyncClient(
             timeout=self._timeout_seconds,
             follow_redirects=True,
+            trust_env=False,
             headers={"User-Agent": "digital-barometer/0.1"},
             proxy=self._proxy_url,
         ) as client:
