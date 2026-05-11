@@ -3,6 +3,7 @@ from collections import Counter, defaultdict
 from datetime import UTC, datetime
 from uuid import UUID
 
+from app.core.settings import Settings
 from app.repositories.analysis import AnalysisRepository
 from app.services.metrics import emotion_distribution, final_status
 from app.services.search_plan import QueryBuilder, SearchPlan, SourceSearchQuery
@@ -23,6 +24,7 @@ class AnalysisService:
         summary_service: SummaryService,
         query_builder: QueryBuilder,
         source_fetch_service: SourceFetchService,
+        settings: Settings,
     ) -> None:
         self._analysis_repository = analysis_repository
         self._topic_service = topic_service
@@ -30,6 +32,7 @@ class AnalysisService:
         self._summary_service = summary_service
         self._query_builder = query_builder
         self._source_fetch_service = source_fetch_service
+        self._source_fetch_max_concurrency = settings.SOURCE_FETCH_MAX_CONCURRENCY
 
     async def run(
         self,
@@ -49,8 +52,10 @@ class AnalysisService:
         source_results: list[SourceResult] = []
 
         started_sources = await self._start_source_results(analysis_run.id, search_plan)
+        source_fetch_semaphore = asyncio.Semaphore(self._source_fetch_max_concurrency)
         source_tasks = [
-            self._process_source(
+            self._process_source_limited(
+                semaphore=source_fetch_semaphore,
                 analysis_run=analysis_run,
                 source_query=source_query,
                 source_result=source_result,
@@ -190,6 +195,26 @@ class AnalysisService:
             date_from=date_from,
             date_to=date_to,
         )
+
+    async def _process_source_limited(
+        self,
+        semaphore: asyncio.Semaphore,
+        analysis_run: AnalysisRun,
+        source_query: SourceSearchQuery,
+        source_result: SourceResult,
+        search_plan: SearchPlan,
+        date_from: datetime,
+        date_to: datetime,
+    ) -> SourceFetchArtifacts:
+        async with semaphore:
+            return await self._process_source(
+                analysis_run=analysis_run,
+                source_query=source_query,
+                source_result=source_result,
+                search_plan=search_plan,
+                date_from=date_from,
+                date_to=date_to,
+            )
 
     async def _start_source_result(
         self,

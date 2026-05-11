@@ -55,6 +55,17 @@ class ConnectorFactoryTest(unittest.TestCase):
 
         self.assertTrue(all(connector._proxy_url is None for connector in connectors))
 
+    def test_source_proxy_url_overrides_global_proxy(self) -> None:
+        factory = ConnectorFactory(
+            Settings(OUTBOUND_PROXY_URL="socks5h://global:1080")
+        )
+        source_without_proxy = source(None)
+        source_without_proxy.config["proxy_url"] = ""
+
+        connector = factory.create(source_without_proxy)
+
+        self.assertIsNone(connector._proxy_url)
+
 
 if __name__ == "__main__":
     unittest.main()

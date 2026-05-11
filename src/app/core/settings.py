@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     LLM_MAX_CONCURRENCY: int = Field(default=3, ge=1, le=20)
     REQUEST_TIMEOUT_SECONDS: float = 10.0
     OUTBOUND_PROXY_URL: str | None = None
+    SOURCE_FETCH_MAX_CONCURRENCY: int = Field(default=2, ge=1, le=10)
 
 
 settings = Settings()

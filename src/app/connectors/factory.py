@@ -13,7 +13,7 @@ class ConnectorFactory:
         self._settings = settings
 
     def create(self, source: Source) -> SourceConnector:
-        proxy_url = _optional_str(self._settings.OUTBOUND_PROXY_URL)
+        proxy_url = _source_proxy_url(source, self._settings.OUTBOUND_PROXY_URL)
 
         if source.config.get("connector") == "pytrends_modern":
             return PytrendsModernConnector(
@@ -58,3 +58,9 @@ def _optional_str(value: object) -> str | None:
         return None
     text = str(value).strip()
     return text or None
+
+
+def _source_proxy_url(source: Source, default_proxy_url: str | None) -> str | None:
+    if "proxy_url" in source.config:
+        return _optional_str(source.config.get("proxy_url"))
+    return _optional_str(default_proxy_url)

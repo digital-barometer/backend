@@ -57,7 +57,7 @@ class GdeltDocConnector:
         client: httpx.AsyncClient,
         url: str,
     ) -> httpx.Response:
-        retry_delays = (6, 12, 18)
+        retry_delays = (6, 10, 15, 30, 60)
         for attempt in range(len(retry_delays) + 1):
             response = await client.get(url)
             if response.status_code == 429 and attempt < len(retry_delays):

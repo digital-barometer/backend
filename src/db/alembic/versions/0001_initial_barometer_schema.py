@@ -112,7 +112,7 @@ def upgrade() -> None:
                 'Habr',
                 'forum',
                 'https://habr.com',
-                '{"rss_url_template": "https://habr.com/ru/rss/search/?q={query}", "filter_locally": true}'::jsonb,
+                '{"rss_url_template": "https://habr.com/ru/rss/search/?q={query}", "filter_locally": true, "proxy_url": ""}'::jsonb,
                 true
             ),
             (
