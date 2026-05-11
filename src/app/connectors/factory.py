@@ -2,12 +2,10 @@ from app.connectors.base import SourceConnector
 from app.connectors.gdelt import GdeltDocConnector
 from app.connectors.newsapi import NewsApiConnector
 from app.connectors.rss import RssSearchConnector
-from app.connectors.trends import DataForSeoTrendsConnector
+from app.connectors.trends import SerpApiTrendsConnector, _TRENDS_CONNECTORS
 from app.core.settings import Settings
 from db.enums import SourceType
 from db.models import Source
-
-_TRENDS_CONNECTORS = {"pytrends_modern", "dataforseo_trends"}
 
 
 class ConnectorFactory:
@@ -18,11 +16,9 @@ class ConnectorFactory:
         proxy_url = _source_proxy_url(source, self._settings.OUTBOUND_PROXY_URL)
 
         if source.config.get("connector") in _TRENDS_CONNECTORS:
-            return DataForSeoTrendsConnector(
-                login=self._settings.DATAFORSEO_LOGIN,
-                password=self._settings.DATAFORSEO_PASSWORD,
+            return SerpApiTrendsConnector(
+                api_key=self._settings.SERPAPI_API_KEY,
                 geo=str(source.config.get("geo", "RU")),
-                language_code=str(source.config.get("language_code", "ru")),
                 timeout_seconds=self._settings.REQUEST_TIMEOUT_SECONDS,
                 proxy_url=proxy_url,
             )

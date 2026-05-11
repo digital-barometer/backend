@@ -17,8 +17,7 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str | None = None
     OPENAI_BASE_URL: str | None = None
     NEWSAPI_API_KEY: str | None = None
-    DATAFORSEO_LOGIN: str | None = None
-    DATAFORSEO_PASSWORD: str | None = None
+    SERPAPI_API_KEY: str | None = None
     LANGCHAIN_MODEL: str | None = None
     SENTIMENT_MODEL: str | None = None
     ANALYSIS_MODEL: str | None = None
