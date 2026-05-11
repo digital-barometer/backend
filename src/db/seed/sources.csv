@@ -1,0 +1,6 @@
+name,source_type,base_url,config_json,is_active,required_env
+Google Trends,search_trend,https://trends.google.com,"{""connector"": ""pytrends_modern"", ""geo"": ""RU""}",true,
+Google News,news,https://news.google.com,"{""rss_url_template"": ""https://news.google.com/rss/search?q={query}&hl=ru&gl=RU&ceid=RU:ru""}",true,
+Habr,forum,https://habr.com,"{""rss_url_template"": ""https://habr.com/ru/rss/search/?q={query}"", ""filter_locally"": true}",true,
+GDELT Project,news,https://www.gdeltproject.org,"{""connector"": ""gdelt_doc"", ""max_records"": 100}",true,
+NewsAPI,news,https://newsapi.org,"{""connector"": ""newsapi"", ""language"": ""ru"", ""page_size"": 100, ""sort_by"": ""publishedAt""}",true,NEWSAPI_API_KEY

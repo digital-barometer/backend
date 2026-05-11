@@ -1,0 +1,4 @@
+name,slug,keywords_json,is_active
+OpenAI,openai,"[""OpenAI"", ""ChatGPT""]",true
+Python,python,"[""Python""]",true
+Искусственный интеллект,iskusstvennyj-intellekt,"[""Искусственный интеллект"", ""ИИ"", ""AI""]",true

@@ -14,10 +14,12 @@ class GdeltDocConnector:
         timeout_seconds: float,
         max_records: int = 100,
         language: str | None = None,
+        proxy_url: str | None = None,
     ) -> None:
         self._timeout_seconds = timeout_seconds
         self._max_records = max_records
         self._language = language
+        self._proxy_url = proxy_url
 
     async def fetch(self, query: str, date_from: datetime, date_to: datetime) -> ConnectorResult:
         url = self._build_url(query, date_from, date_to)
@@ -25,8 +27,12 @@ class GdeltDocConnector:
             timeout=self._timeout_seconds,
             follow_redirects=True,
             headers={"User-Agent": "digital-barometer/0.1"},
+            proxy=self._proxy_url,
         ) as client:
-            response = await self._get_with_rate_limit_retry(client, url)
+            try:
+                response = await self._get_with_rate_limit_retry(client, url)
+            except httpx.RequestError as exc:
+                raise ValueError(f"GDELT Project request failed: {_exception_message(exc)}") from exc
 
         payload = _json_payload("GDELT Project", response)
         articles = payload.get("articles") if isinstance(payload, dict) else None
@@ -171,3 +177,7 @@ def _json_payload(provider: str, response: httpx.Response) -> dict:
     if not isinstance(payload, dict):
         raise ValueError(f"{provider} returned unexpected JSON payload")
     return payload
+
+
+def _exception_message(exc: Exception) -> str:
+    return str(exc) or exc.__class__.__name__

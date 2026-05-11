@@ -22,8 +22,7 @@ async def run_analysis(
 ) -> AnalysisRunResponse:
     try:
         analysis_run = await analysis_service.run(
-            query=payload.query,
-            keywords=payload.keywords,
+            topic_id=payload.topic_id,
             date_from=payload.date_from,
             date_to=payload.date_to,
             source_ids=payload.source_ids,

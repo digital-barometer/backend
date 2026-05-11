@@ -1,9 +1,14 @@
 import asyncio
+import csv
+import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
-from dotenv import load_dotenv
+
+SEED_DIR = Path(__file__).resolve().parent
+
 from sqlalchemy import select
 
 from db.database import async_session_maker
@@ -11,16 +16,12 @@ from db.enums import SourceType
 from db.models import Source, Topic
 
 
-load_dotenv(Path(__file__).resolve().parents[3] / ".env")
-load_dotenv()
-
-
 @dataclass(frozen=True, slots=True)
 class SourceSeed:
     name: str
     source_type: SourceType
     base_url: str
-    config: dict
+    config: dict[str, Any]
     is_active: bool = True
 
 
@@ -32,86 +33,73 @@ class TopicSeed:
     is_active: bool = True
 
 
-SOURCES = [
-    SourceSeed(
-        name="Google Trends",
-        source_type=SourceType.SEARCH_TREND,
-        base_url="https://trends.google.com",
-        config={"connector": "pytrends_modern", "geo": "RU"},
-    ),
-    SourceSeed(
-        name="Google News",
-        source_type=SourceType.NEWS,
-        base_url="https://news.google.com",
-        config={
-            "rss_url_template": (
-                "https://news.google.com/rss/search?q={query}&hl=ru&gl=RU&ceid=RU:ru"
-            )
-        },
-    ),
-    SourceSeed(
-        name="Habr",
-        source_type=SourceType.FORUM,
-        base_url="https://habr.com",
-        config={
-            "rss_url_template": "https://habr.com/ru/rss/search/?q={query}",
-            "filter_locally": True,
-        },
-    ),
-    SourceSeed(
-        name="GDELT Project",
-        source_type=SourceType.NEWS,
-        base_url="https://www.gdeltproject.org",
-        config={
-            "connector": "gdelt_doc",
-            "max_records": 100,
-        },
-    ),
-    SourceSeed(
-        name="NewsAPI",
-        source_type=SourceType.NEWS,
-        base_url="https://newsapi.org",
-        config={
-            "connector": "newsapi",
-            "language": "ru",
-            "page_size": 100,
-            "sort_by": "publishedAt",
-        },
-        is_active=bool(os.getenv("NEWSAPI_API_KEY")),
-    ),
-]
-
-TOPICS = [
-    TopicSeed(
-        name="OpenAI",
-        slug="openai",
-        keywords=["OpenAI", "ChatGPT"],
-    ),
-    TopicSeed(
-        name="Python",
-        slug="python",
-        keywords=["Python"],
-    ),
-    TopicSeed(
-        name="Искусственный интеллект",
-        slug="iskusstvennyj-intellekt",
-        keywords=["Искусственный интеллект", "ИИ", "AI"],
-    ),
-]
-
-
 async def seed_data() -> None:
+    sources = _load_sources(SEED_DIR / "sources.csv")
+    topics = _load_topics(SEED_DIR / "topics.csv")
+
     async with async_session_maker() as session:
-        source_count = await _upsert_sources(session)
-        topic_count = await _upsert_topics(session)
+        source_count = await _upsert_sources(session, sources)
+        topic_count = await _upsert_topics(session, topics)
         await session.commit()
 
     print(f"Seeded sources: {source_count}")
     print(f"Seeded topics: {topic_count}")
 
 
-async def _upsert_sources(session) -> int:
-    for item in SOURCES:
+def _load_sources(path: Path) -> list[SourceSeed]:
+    rows = _read_csv(path)
+    return [
+        SourceSeed(
+            name=row["name"],
+            source_type=SourceType(row["source_type"]),
+            base_url=row["base_url"],
+            config=_load_json(row["config_json"], default={}),
+            is_active=_is_active(row),
+        )
+        for row in rows
+    ]
+
+
+def _load_topics(path: Path) -> list[TopicSeed]:
+    rows = _read_csv(path)
+    return [
+        TopicSeed(
+            name=row["name"],
+            slug=row["slug"],
+            keywords=_load_json(row["keywords_json"], default=[]),
+            is_active=_parse_bool(row.get("is_active"), default=True),
+        )
+        for row in rows
+    ]
+
+
+def _read_csv(path: Path) -> list[dict[str, str]]:
+    with path.open(newline="", encoding="utf-8") as file:
+        return list(csv.DictReader(file))
+
+
+def _load_json(value: str | None, *, default: Any) -> Any:
+    if not value:
+        return default
+    return json.loads(value)
+
+
+def _is_active(row: dict[str, str]) -> bool:
+    is_active = _parse_bool(row.get("is_active"), default=True)
+    required_env = row.get("required_env")
+    if required_env:
+        return is_active and bool(os.getenv(required_env))
+    return is_active
+
+
+def _parse_bool(value: str | None, *, default: bool) -> bool:
+    if value is None or value == "":
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+async def _upsert_sources(session, sources: list[SourceSeed]) -> int:
+    for item in sources:
         source = await _get_source_by_name(session, item.name)
         if source is None:
             session.add(
@@ -130,11 +118,11 @@ async def _upsert_sources(session) -> int:
         source.config = item.config
         source.is_active = item.is_active
 
-    return len(SOURCES)
+    return len(sources)
 
 
-async def _upsert_topics(session) -> int:
-    for item in TOPICS:
+async def _upsert_topics(session, topics: list[TopicSeed]) -> int:
+    for item in topics:
         topic = await _get_topic_by_slug(session, item.slug)
         if topic is None:
             session.add(
@@ -151,7 +139,7 @@ async def _upsert_topics(session) -> int:
         topic.keywords = item.keywords
         topic.is_active = item.is_active
 
-    return len(TOPICS)
+    return len(topics)
 
 
 async def _get_source_by_name(session, name: str) -> Source | None:

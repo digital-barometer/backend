@@ -14,12 +14,14 @@ class NewsApiConnector:
         language: str = "ru",
         page_size: int = 100,
         sort_by: str = "publishedAt",
+        proxy_url: str | None = None,
     ) -> None:
         self._api_key = api_key
         self._timeout_seconds = timeout_seconds
         self._language = language
         self._page_size = page_size
         self._sort_by = sort_by
+        self._proxy_url = proxy_url
 
     async def fetch(self, query: str, date_from: datetime, date_to: datetime) -> ConnectorResult:
         if not self._api_key:
@@ -40,8 +42,12 @@ class NewsApiConnector:
                 "User-Agent": "digital-barometer/0.1",
                 "X-Api-Key": self._api_key,
             },
+            proxy=self._proxy_url,
         ) as client:
-            response = await client.get("https://newsapi.org/v2/everything", params=params)
+            try:
+                response = await client.get("https://newsapi.org/v2/everything", params=params)
+            except httpx.RequestError as exc:
+                raise ValueError(f"NewsAPI request failed: {_exception_message(exc)}") from exc
             _raise_for_status("NewsAPI", response)
 
         payload = response.json()
@@ -142,3 +148,7 @@ def _raise_for_status(provider: str, response: httpx.Response) -> None:
     except httpx.HTTPStatusError as exc:
         body = " ".join(response.text.split())[:500]
         raise ValueError(f"{provider} returned HTTP {response.status_code}: {body}") from exc
+
+
+def _exception_message(exc: Exception) -> str:
+    return str(exc) or exc.__class__.__name__

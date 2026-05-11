@@ -7,8 +7,9 @@ from app.connectors.base import ConnectorResult, ParsedTrendPoint
 
 
 class PytrendsModernConnector:
-    def __init__(self, geo: str = "RU") -> None:
+    def __init__(self, geo: str = "RU", proxy_url: str | None = None) -> None:
         self._geo = geo
+        self._proxy_url = proxy_url
 
     async def fetch(self, query: str, date_from: datetime, date_to: datetime) -> ConnectorResult:
         return await self._fetch_in_thread(query, date_from, date_to)
@@ -23,9 +24,12 @@ class PytrendsModernConnector:
         return await asyncio.to_thread(self._fetch_sync, query, date_from, date_to)
 
     def _fetch_sync(self, query: str, date_from: datetime, date_to: datetime) -> ConnectorResult:
-
-        pytrends = TrendReq(hl="ru-RU", tz=180)
         timeframe = f"{date_from.date().isoformat()} {date_to.date().isoformat()}"
+        proxies = None
+        if self._proxy_url:
+            proxies = {"http": self._proxy_url, "https": self._proxy_url}
+
+        pytrends = TrendReq(hl="ru-RU", tz=180, proxies=proxies)
         pytrends.build_payload(
             kw_list=[query],
             timeframe=timeframe,

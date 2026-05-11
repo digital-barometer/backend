@@ -2,7 +2,17 @@ from collections import Counter
 from decimal import Decimal
 
 from db.enums import AnalysisStatus
-from db.models import Mention, SourceResult, TrendPoint
+from db.models import AnalysisMetric, Mention, SourceResult, TrendPoint
+
+
+EMOTION_CHART_FIELDS = (
+    ("joy", "Радость", "joy_count"),
+    ("irritation", "Раздражение", "irritation_count"),
+    ("fear", "Страх", "fear_count"),
+    ("trust", "Доверие", "trust_count"),
+    ("surprise", "Удивление", "surprise_count"),
+    ("anger", "Злость", "anger_count"),
+)
 
 
 def sentiment_counts(mentions: list[Mention]) -> dict[str, int]:
@@ -16,6 +26,30 @@ def sentiment_counts(mentions: list[Mention]) -> dict[str, int]:
 
 def emotion_counts(mentions: list[Mention]) -> dict[str, int]:
     return dict(Counter(mention.emotion for mention in mentions if mention.emotion is not None))
+
+
+def emotion_distribution(metrics: AnalysisMetric | None) -> list[dict[str, int | float | str]]:
+    if metrics is None:
+        return []
+
+    counts = [
+        (emotion, label, getattr(metrics, field_name) or 0)
+        for emotion, label, field_name in EMOTION_CHART_FIELDS
+    ]
+    total = sum(count for _, _, count in counts)
+    if total <= 0:
+        return []
+
+    return [
+        {
+            "emotion": emotion,
+            "label": label,
+            "count": count,
+            "percent": round((count / total) * 100, 2),
+        }
+        for emotion, label, count in counts
+        if count > 0
+    ]
 
 
 def trend_context(trend_points: list[TrendPoint]) -> dict:

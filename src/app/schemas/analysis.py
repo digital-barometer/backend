@@ -2,12 +2,13 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class AnalysisRunRequest(BaseModel):
-    query: str = Field(min_length=2, max_length=200)
-    keywords: list[str] = Field(default_factory=list)
+    model_config = ConfigDict(extra="forbid")
+
+    topic_id: UUID
     date_from: datetime
     date_to: datetime
     source_ids: list[UUID] = Field(default_factory=list)
@@ -19,6 +20,43 @@ class TopicResponse(BaseModel):
     slug: str
     keywords: list[str]
     is_active: bool
+
+
+class TopicCreateRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=200)
+    keywords: list[str] = Field(default_factory=list)
+
+    @field_validator("name")
+    @classmethod
+    def normalize_name(cls, value: str) -> str:
+        normalized = " ".join(value.strip().split())
+        if len(normalized) < 2:
+            raise ValueError("name must contain at least 2 non-space characters")
+        return normalized
+
+    @field_validator("keywords")
+    @classmethod
+    def normalize_keywords(cls, value: list[str]) -> list[str]:
+        normalized = [
+            item
+            for item in (" ".join(keyword.strip().split()) for keyword in value)
+            if item
+        ]
+        return list(dict.fromkeys(normalized))
+
+
+class TopicUpdateRequest(BaseModel):
+    keywords: list[str]
+
+    @field_validator("keywords")
+    @classmethod
+    def normalize_keywords(cls, value: list[str]) -> list[str]:
+        normalized = [
+            item
+            for item in (" ".join(keyword.strip().split()) for keyword in value)
+            if item
+        ]
+        return list(dict.fromkeys(normalized))
 
 
 class SourceResponse(BaseModel):
@@ -112,7 +150,15 @@ class SentimentPoint(BaseModel):
     count: int
 
 
+class EmotionPoint(BaseModel):
+    emotion: str
+    label: str
+    count: int
+    percent: float
+
+
 class ChartDataResponse(BaseModel):
     trend_points: list[TrendPointResponse]
     mentions_by_day: list[DailyMentionPoint]
     sentiment: list[SentimentPoint]
+    emotions: list[EmotionPoint]

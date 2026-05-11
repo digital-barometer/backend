@@ -73,7 +73,7 @@ def mark_source_success(
 
 def mark_source_failed(source_result: SourceResult, exc: Exception) -> None:
     source_result.status = AnalysisStatus.FAILED
-    source_result.error_message = redact_sensitive_text(str(exc))
+    source_result.error_message = redact_sensitive_text(_exception_message(exc))[:1000]
     source_result.finished_at = datetime.now(UTC)
 
 
@@ -90,6 +90,10 @@ def redact_sensitive_text(value: str) -> str:
         redacted,
         flags=re.IGNORECASE,
     )
+
+
+def _exception_message(exc: Exception) -> str:
+    return str(exc) or exc.__class__.__name__
 
 
 def to_mention(analysis_run_id: UUID, source_id: UUID, item: ParsedMention) -> Mention:

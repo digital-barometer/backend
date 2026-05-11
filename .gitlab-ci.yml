@@ -1,0 +1,111 @@
+stages:
+  - test
+  - build
+  - deploy
+
+variables:
+  SERVICE_NAME: barometer-api
+  API_DOCKERFILE_PATH: Dockerfile
+  MIGRATION_DOCKERFILE_PATH: Dockerfile.migrate
+  SEED_DOCKERFILE_PATH: Dockerfile.seed
+  COMPOSE_FILE_PATH: docker-compose.yml
+  DOCKER_IMAGE_NAME: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+  MIGRATION_IMAGE_NAME: $CI_REGISTRY_IMAGE/migrations:$CI_COMMIT_REF_SLUG
+  SEED_IMAGE_NAME: $CI_REGISTRY_IMAGE/seed:$CI_COMMIT_REF_SLUG
+
+test_backend:
+  stage: test
+  image: ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+  variables:
+    UV_CACHE_DIR: .uv-cache
+  cache:
+    key:
+      files:
+        - uv.lock
+    paths:
+      - .uv-cache/
+  script:
+    - uv sync --frozen
+    - uv run python -m unittest discover -s tests
+
+build_image:
+  stage: build
+  image: docker:27.5.0
+  services:
+    - docker:27.5.0-dind
+  variables:
+    GIT_SUBMODULE_STRATEGY: normal
+    GIT_SUBMODULE_FORCE_HTTPS: "true"
+    GIT_SUBMODULE_DEPTH: 1
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+  script:
+    - docker build --pull -f "$API_DOCKERFILE_PATH" -t "$DOCKER_IMAGE_NAME" .
+    - docker build --pull -f "$MIGRATION_DOCKERFILE_PATH" -t "$MIGRATION_IMAGE_NAME" .
+    - docker build --pull -f "$SEED_DOCKERFILE_PATH" -t "$SEED_IMAGE_NAME" .
+    - docker push "$DOCKER_IMAGE_NAME"
+    - docker push "$MIGRATION_IMAGE_NAME"
+    - docker push "$SEED_IMAGE_NAME"
+  only:
+    - main
+    - stage
+
+.deploy_template:
+  stage: deploy
+  image: docker:27.5.0
+  before_script:
+    - 'apk add --no-cache openssh-client'
+    - 'eval "$(ssh-agent -s)"'
+    - 'echo "TARGET_SSH_PRIVATE_KEY length: $(printf ''%s'' "$TARGET_SSH_PRIVATE_KEY" | wc -c)"'
+    - 'printf ''%s'' "$TARGET_SSH_PRIVATE_KEY" | tr -d ''\r'' | base64 -d > /tmp/deploy_key'
+    - 'echo "Decoded private key size: $(wc -c < /tmp/deploy_key)"'
+    - 'echo "Decoded private key header: $(head -n 1 /tmp/deploy_key)"'
+    - 'chmod 600 /tmp/deploy_key'
+    - 'ssh-keygen -y -f /tmp/deploy_key >/dev/null'
+    - 'ssh-add /tmp/deploy_key'
+    - 'mkdir -p ~/.ssh && chmod 700 ~/.ssh'
+    - 'printf "Host *\n\tStrictHostKeyChecking no\n\tPort %s\n" "$TARGET_PORT" > ~/.ssh/config'
+  script:
+    - ssh "$TARGET_USER@$TARGET_HOST" "mkdir -p $INFRA_PATH"
+    - scp "$COMPOSE_FILE_PATH" "$TARGET_USER@$TARGET_HOST:$INFRA_PATH/docker-compose.yml"
+    - scp "$TARGET_ENV_FILE" "$TARGET_USER@$TARGET_HOST:$INFRA_PATH/.env"
+    - ssh "$TARGET_USER@$TARGET_HOST" "
+        export DOCKER_IMAGE_NAME=$DOCKER_IMAGE_NAME &&
+        export MIGRATION_IMAGE_NAME=$MIGRATION_IMAGE_NAME &&
+        export SEED_IMAGE_NAME=$SEED_IMAGE_NAME &&
+        cd $INFRA_PATH &&
+        echo '$CI_REGISTRY_PASSWORD' | docker login -u '$CI_REGISTRY_USER' --password-stdin '$CI_REGISTRY' &&
+        docker compose pull api migrate-db seed-db &&
+        docker compose run --rm migrate-db &&
+        docker compose run --rm seed-db &&
+        docker compose up -d --remove-orphans api &&
+        docker image prune -f
+      "
+
+deploy_stage:
+  extends: .deploy_template
+  variables:
+    INFRA_PATH: "$BASE_DEPLOY_PATH/$SERVICE_NAME"
+    TARGET_SSH_PRIVATE_KEY: $SSH_PRIVATE_KEY_STAGE
+    TARGET_PORT: $SSH_PORT_STAGE
+    TARGET_HOST: $SSH_HOST_STAGE
+    TARGET_USER: $SSH_USER_STAGE
+    TARGET_ENV_FILE: $STAGE_ENV_FILE
+  environment:
+    name: staging
+  only:
+    - stage
+
+deploy_prod:
+  extends: .deploy_template
+  variables:
+    INFRA_PATH: "$BASE_DEPLOY_PATH/$SERVICE_NAME"
+    TARGET_SSH_PRIVATE_KEY: $SSH_PRIVATE_KEY
+    TARGET_PORT: $SSH_PORT_PROD
+    TARGET_HOST: $SSH_HOST_PROD
+    TARGET_USER: $SSH_USER_PROD
+    TARGET_ENV_FILE: $PROD_ENV_FILE
+  environment:
+    name: production
+  only:
+    - main

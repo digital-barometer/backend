@@ -1,0 +1,56 @@
+services:
+  api:
+    image: ${DOCKER_IMAGE_NAME}
+    env_file:
+      - path: .env
+        required: false
+    build: .
+    ports:
+      - "${API_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+    networks:
+      - web_network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.barometer-api.rule=Host(`${API_PUBLIC_HOST:?API_PUBLIC_HOST is required}`)"
+      - "traefik.http.routers.barometer-api.entrypoints=websecure"
+      - "traefik.http.routers.barometer-api.tls.certresolver=barometer"
+      - "traefik.http.services.barometer-api.loadbalancer.server.port=8000"
+
+  migrate-db:
+    image: ${MIGRATION_IMAGE_NAME}
+    build:
+      context: .
+      dockerfile: Dockerfile.migrate
+    env_file:
+      - path: .env
+        required: false
+    restart: "no"
+    networks:
+      - web_network
+
+  seed-db:
+    image: ${SEED_IMAGE_NAME}
+    build:
+      context: .
+      dockerfile: Dockerfile.seed
+    depends_on:
+      migrate-db:
+        condition: service_completed_successfully
+    env_file:
+      - path: .env
+        required: false
+    restart: "no"
+    networks:
+      - web_network
+
+networks:
+  web_network:
+    external: true
+    name: web_network

@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from app.repositories.analysis import AnalysisRepository
-from app.services.metrics import final_status
+from app.services.metrics import emotion_distribution, final_status
 from app.services.search_plan import QueryBuilder, SearchPlan, SourceSearchQuery
 from app.services.sources import SourceService
 from app.services.source_fetch import SourceFetchArtifacts, SourceFetchService
@@ -33,16 +33,15 @@ class AnalysisService:
 
     async def run(
         self,
-        query: str,
-        keywords: list[str],
+        topic_id: UUID,
         date_from: datetime,
         date_to: datetime,
         source_ids: list[UUID],
     ) -> AnalysisRun:
         self._validate_period(date_from, date_to)
-        topic = await self._topic_service.get_or_create(query)
+        topic = await self._resolve_topic(topic_id)
         sources = await self._resolve_sources(source_ids)
-        search_plan = self._query_builder.build(query, keywords, sources)
+        search_plan = self._query_builder.build(topic.name, topic.keywords, sources)
         analysis_run = await self._create_run(topic, date_from, date_to, sources)
 
         saved_mentions: list[Mention] = []
@@ -120,7 +119,17 @@ class AnalysisService:
                 {"sentiment": sentiment, "count": count}
                 for sentiment, count in sentiment_counter.items()
             ],
+            "emotions": emotion_distribution(analysis_run.metrics),
         }
+
+    async def _resolve_topic(
+        self,
+        topic_id: UUID,
+    ) -> Topic:
+        topic = await self._topic_service.get_active_by_id(topic_id)
+        if topic is None:
+            raise ValueError(f"Inactive or unknown topic: {topic_id}")
+        return topic
 
     async def _resolve_sources(self, source_ids: list[UUID]) -> list[Source]:
         sources = (

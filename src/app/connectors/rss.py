@@ -30,14 +30,20 @@ class RssSearchConnector:
         url_template: str,
         timeout_seconds: float,
         filter_locally: bool = False,
+        proxy_url: str | None = None,
     ) -> None:
         self._url_template = url_template
         self._timeout_seconds = timeout_seconds
         self._filter_locally = filter_locally
+        self._proxy_url = proxy_url
 
     async def fetch(self, query: str, date_from: datetime, date_to: datetime) -> ConnectorResult:
         url = self._url_template.format(query=quote_plus(query))
-        async with httpx.AsyncClient(timeout=self._timeout_seconds, follow_redirects=True) as client:
+        async with httpx.AsyncClient(
+            timeout=self._timeout_seconds,
+            follow_redirects=True,
+            proxy=self._proxy_url,
+        ) as client:
             response = await client.get(url)
             response.raise_for_status()
 

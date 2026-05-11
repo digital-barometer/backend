@@ -1,5 +1,5 @@
 import unittest
-from datetime import UTC, datetime
+from uuid import uuid4
 
 from app.schemas.analysis import AnalysisRunRequest
 from app.services.search_plan import QueryBuilder, build_source_query, normalize_keywords
@@ -19,15 +19,15 @@ def source(connector: str | None) -> Source:
 
 
 class SearchPlanTest(unittest.TestCase):
-    def test_old_payload_without_keywords_is_still_valid(self) -> None:
+    def test_analysis_payload_requires_topic_id(self) -> None:
+        topic_id = uuid4()
         payload = AnalysisRunRequest(
-            query="OpenAI",
-            date_from=datetime(2026, 1, 1, tzinfo=UTC),
-            date_to=datetime(2026, 1, 2, tzinfo=UTC),
+            topic_id=topic_id,
+            date_from="2026-01-01T00:00:00Z",
+            date_to="2026-01-02T00:00:00Z",
         )
 
-        self.assertEqual(payload.keywords, [])
-        self.assertEqual(normalize_keywords(payload.query, payload.keywords), ["OpenAI"])
+        self.assertEqual(payload.topic_id, topic_id)
 
     def test_keyword_coverage_deduplicates_query_and_keywords(self) -> None:
         self.assertEqual(

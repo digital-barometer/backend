@@ -3,6 +3,7 @@ from app.schemas.analysis import (
     AnalysisRunResponse,
     ChartDataResponse,
     DailyMentionPoint,
+    EmotionPoint,
     MentionResponse,
     SentimentPoint,
     SourceResponse,
@@ -55,6 +56,7 @@ def to_chart_response(chart_data: dict) -> ChartDataResponse:
         trend_points=[to_trend_point_response(item) for item in chart_data["trend_points"]],
         mentions_by_day=[DailyMentionPoint(**item) for item in chart_data["mentions_by_day"]],
         sentiment=[SentimentPoint(**item) for item in chart_data["sentiment"]],
+        emotions=[EmotionPoint(**item) for item in chart_data["emotions"]],
     )
 
 

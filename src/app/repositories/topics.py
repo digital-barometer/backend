@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,6 +12,15 @@ class TopicRepository:
 
     async def get_by_slug(self, slug: str) -> Topic | None:
         result = await self._session.execute(select(Topic).where(Topic.slug == slug))
+        return result.scalar_one_or_none()
+
+    async def get_active_by_id(self, topic_id: UUID) -> Topic | None:
+        result = await self._session.execute(
+            select(Topic).where(
+                Topic.id == topic_id,
+                Topic.is_active.is_(True),
+            )
+        )
         return result.scalar_one_or_none()
 
     async def list_active(self) -> list[Topic]:
