@@ -18,6 +18,11 @@ test_backend:
   image: ghcr.io/astral-sh/uv:python3.13-bookworm-slim
   variables:
     UV_CACHE_DIR: .uv-cache
+    POSTGRES_USER: test
+    POSTGRES_PASSWORD: test
+    POSTGRES_HOST: localhost
+    POSTGRES_PORT: "5432"
+    POSTGRES_DB: test
   cache:
     key:
       files:
