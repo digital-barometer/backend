@@ -1,5 +1,6 @@
 from dishka.integrations.fastapi import setup_dishka
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.analysis import router as analysis_router
 from app.api.health import router as health_router
@@ -11,6 +12,14 @@ from app.core.settings import settings
 
 def create_app() -> FastAPI:
     app = FastAPI(title=settings.APP_NAME)
+    if settings.CORS_ALLOW_ORIGINS:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=settings.CORS_ALLOW_ORIGINS,
+            allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
     app.include_router(health_router)
     app.include_router(sources_router)
     app.include_router(topics_router)

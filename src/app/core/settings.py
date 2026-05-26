@@ -1,7 +1,7 @@
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -14,6 +14,16 @@ class Settings(BaseSettings):
     )
 
     APP_NAME: str = "Digital Barometer API"
+    CORS_ALLOW_ORIGINS: Annotated[list[str], NoDecode] = Field(default_factory=list)
+    CORS_ALLOW_CREDENTIALS: bool = False
+
+    @field_validator("CORS_ALLOW_ORIGINS", mode="before")
+    @classmethod
+    def _split_origins(cls, value: object) -> object:
+        if isinstance(value, str):
+            return [item.strip() for item in value.split(",") if item.strip()]
+        return value
+
     OPENAI_API_KEY: str | None = None
     OPENAI_BASE_URL: str | None = None
     NEWSAPI_API_KEY: str | None = None
