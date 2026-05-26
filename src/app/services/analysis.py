@@ -7,6 +7,7 @@ from app.core.settings import Settings
 from app.repositories.analysis import AnalysisRepository
 from app.services.metrics import emotion_distribution, final_status
 from app.services.search_plan import QueryBuilder, SearchPlan, SourceSearchQuery
+from app.services.sentiment import SentimentAnalyzer
 from app.services.sources import SourceService
 from app.services.source_fetch import SourceFetchArtifacts, SourceFetchService
 from app.services.summary import SummaryService
@@ -22,6 +23,7 @@ class AnalysisService:
         topic_service: TopicService,
         source_service: SourceService,
         summary_service: SummaryService,
+        sentiment_analyzer: SentimentAnalyzer,
         query_builder: QueryBuilder,
         source_fetch_service: SourceFetchService,
         settings: Settings,
@@ -30,6 +32,7 @@ class AnalysisService:
         self._topic_service = topic_service
         self._source_service = source_service
         self._summary_service = summary_service
+        self._sentiment_analyzer = sentiment_analyzer
         self._query_builder = query_builder
         self._source_fetch_service = source_fetch_service
         self._source_fetch_max_concurrency = settings.SOURCE_FETCH_MAX_CONCURRENCY
@@ -59,7 +62,6 @@ class AnalysisService:
                 analysis_run=analysis_run,
                 source_query=source_query,
                 source_result=source_result,
-                search_plan=search_plan,
                 date_from=date_from,
                 date_to=date_to,
             )
@@ -70,6 +72,9 @@ class AnalysisService:
             source_results.append(artifacts.source_result)
             saved_mentions.extend(artifacts.mentions)
             saved_trends.extend(artifacts.trend_points)
+
+        if saved_mentions:
+            await self._sentiment_analyzer.apply(topic.name, saved_mentions)
 
         self._analysis_repository.add_mentions(saved_mentions)
         self._analysis_repository.add_trend_points(saved_trends)
@@ -169,26 +174,22 @@ class AnalysisService:
         analysis_run_id: UUID,
         search_plan: SearchPlan,
     ) -> list[tuple[SourceSearchQuery, SourceResult]]:
-        return [
-            (
-                source_query,
-                await self._start_source_result(analysis_run_id, source_query.source.id),
-            )
-            for source_query in search_plan.source_queries
-        ]
+        async def _make_pair(source_query: SourceSearchQuery) -> tuple[SourceSearchQuery, SourceResult]:
+            result = await self._start_source_result(analysis_run_id, source_query.source.id)
+            return source_query, result
+
+        return list(await asyncio.gather(*[_make_pair(sq) for sq in search_plan.source_queries]))
 
     async def _process_source(
         self,
         analysis_run: AnalysisRun,
         source_query: SourceSearchQuery,
         source_result: SourceResult,
-        search_plan: SearchPlan,
         date_from: datetime,
         date_to: datetime,
     ) -> SourceFetchArtifacts:
         return await self._source_fetch_service.fetch(
             analysis_run_id=analysis_run.id,
-            topic_name=search_plan.query,
             source=source_query.source,
             source_result=source_result,
             query=source_query.query,
@@ -202,7 +203,6 @@ class AnalysisService:
         analysis_run: AnalysisRun,
         source_query: SourceSearchQuery,
         source_result: SourceResult,
-        search_plan: SearchPlan,
         date_from: datetime,
         date_to: datetime,
     ) -> SourceFetchArtifacts:
@@ -211,7 +211,6 @@ class AnalysisService:
                 analysis_run=analysis_run,
                 source_query=source_query,
                 source_result=source_result,
-                search_plan=search_plan,
                 date_from=date_from,
                 date_to=date_to,
             )

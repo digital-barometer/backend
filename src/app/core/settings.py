@@ -38,10 +38,10 @@ class Settings(BaseSettings):
         "json_mode",
     ] = "json_mode"
     LLM_SENTIMENT_BATCH_SIZE: int = Field(default=20, ge=1, le=100)
-    LLM_MAX_CONCURRENCY: int = Field(default=3, ge=1, le=20)
+    LLM_MAX_CONCURRENCY: int = Field(default=5, ge=1, le=20)
     REQUEST_TIMEOUT_SECONDS: float = 10.0
     OUTBOUND_PROXY_URL: str | None = None
-    SOURCE_FETCH_MAX_CONCURRENCY: int = Field(default=2, ge=1, le=10)
+    SOURCE_FETCH_MAX_CONCURRENCY: int = Field(default=5, ge=1, le=10)
 
 
 settings = Settings()

@@ -6,7 +6,6 @@ from uuid import UUID
 
 from app.connectors.base import ConnectorResult, ParsedMention, ParsedTrendPoint
 from app.connectors.factory import ConnectorFactory
-from app.services.sentiment import SentimentAnalyzer
 from db.enums import AnalysisStatus
 from db.models import Mention, Source, SourceResult, TrendPoint
 
@@ -19,18 +18,12 @@ class SourceFetchArtifacts:
 
 
 class SourceFetchService:
-    def __init__(
-        self,
-        connector_factory: ConnectorFactory,
-        sentiment_analyzer: SentimentAnalyzer,
-    ) -> None:
+    def __init__(self, connector_factory: ConnectorFactory) -> None:
         self._connector_factory = connector_factory
-        self._sentiment_analyzer = sentiment_analyzer
 
     async def fetch(
         self,
         analysis_run_id: UUID,
-        topic_name: str,
         source: Source,
         source_result: SourceResult,
         query: str,
@@ -44,8 +37,6 @@ class SourceFetchService:
                 to_mention(analysis_run_id, source.id, item)
                 for item in result.mentions
             ]
-            await self._sentiment_analyzer.apply(topic_name, mentions)
-
             trend_points = [
                 to_trend_point(analysis_run_id, source.id, item)
                 for item in result.trend_points
