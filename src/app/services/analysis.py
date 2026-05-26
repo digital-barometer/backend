@@ -174,11 +174,13 @@ class AnalysisService:
         analysis_run_id: UUID,
         search_plan: SearchPlan,
     ) -> list[tuple[SourceSearchQuery, SourceResult]]:
-        async def _make_pair(source_query: SourceSearchQuery) -> tuple[SourceSearchQuery, SourceResult]:
-            result = await self._start_source_result(analysis_run_id, source_query.source.id)
-            return source_query, result
-
-        return list(await asyncio.gather(*[_make_pair(sq) for sq in search_plan.source_queries]))
+        return [
+            (
+                source_query,
+                await self._start_source_result(analysis_run_id, source_query.source.id),
+            )
+            for source_query in search_plan.source_queries
+        ]
 
     async def _process_source(
         self,
