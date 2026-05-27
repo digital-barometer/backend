@@ -143,6 +143,11 @@ class DailyMentionPoint(BaseModel):
     likes_sum: int
     comments_sum: int
     reposts_sum: int
+    positive: int
+    neutral: int
+    negative: int
+    mixed: int
+    unknown: int
 
 
 class SentimentPoint(BaseModel):

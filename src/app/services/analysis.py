@@ -105,6 +105,8 @@ class AnalysisService:
                 "positive": 0,
                 "neutral": 0,
                 "negative": 0,
+                "mixed": 0,
+                "unknown": 0,
             }
         )
         sentiment_counter: Counter[str] = Counter()
@@ -119,11 +121,10 @@ class AnalysisService:
             bucket["likes_sum"] += mention.likes or 0
             bucket["comments_sum"] += mention.comments or 0
             bucket["reposts_sum"] += mention.reposts or 0
-            if mention.sentiment:
-                sentiment_counter[mention.sentiment.value] += 1
-                label = mention.sentiment.value
-                if label in ("positive", "neutral", "negative"):
-                    bucket[label] += 1
+            label = mention.sentiment.value if mention.sentiment else "unknown"
+            sentiment_counter[label] += 1
+            if label in ("positive", "neutral", "negative", "mixed", "unknown"):
+                bucket[label] += 1
 
         return {
             "trend_points": analysis_run.trend_points,
