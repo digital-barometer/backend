@@ -47,7 +47,9 @@ flowchart LR
 
 ## Analysis flow
 
-![Analysis flow](docs/assets/flowchart.png)
+<div align="center">
+<a href="docs/assets/flowchart.png"><img src="docs/assets/flowchart.png" width="300" alt="Analysis flow"></a>
+</div>
 
 ## Contracts
 
@@ -66,7 +68,9 @@ Swagger UI: `/docs`.
 
 ## Data model
 
-![ERD](docs/assets/db.png)
+<div align="center">
+<a href="docs/assets/db.png"><img src="docs/assets/db.png" width="420" alt="ERD"></a>
+</div>
 
 Models and Alembic migrations live in a separate package, `digital-barometer-db` (`src/db`), installed as an
 editable dependency. Seed data (`src/db/seed/*.csv`) adds the default sources and sample topics.
