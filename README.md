@@ -1,99 +1,111 @@
-# Digital Barometer — backend
+<div align="center">
 
-API for the "Digital Barometer" service — media-mention analysis for a topic:
-collecting data from multiple sources, LLM-based sentiment/emotion scoring,
-and aggregating results into trends and charts.
+![Digital Barometer](docs/assets/logo.svg){width=96 height=96}
 
-Stack: **FastAPI + dishka (DI) + PostgreSQL + LangChain (OpenAI-compatible LLM)**.
+# Digital Barometer · backend
 
-This repo is one of three that make up the system:
+**API, сбор данных и LLM-анализ тональности для сервиса «Цифровой барометр».**
 
-| Repository | Stack | Role |
-| --- | --- | --- |
-| **backend** (this repo) | FastAPI, dishka (DI), PostgreSQL, LangChain | REST API, data collection, LLM analysis |
-| [**frontend**](https://github.com/digital-barometer/frontend) | React 18, TypeScript, Vite, Tailwind CSS, Recharts | Web UI: topics, sources, analysis charts |
-| [**infra**](https://github.com/digital-barometer/infra) | Traefik, PostgreSQL, Docker Compose | Reverse proxy (TLS via Let's Encrypt) and database |
+![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white)
+![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-D71F00?style=flat-square&logo=sqlalchemy&logoColor=white)
+![LangChain](https://img.shields.io/badge/LangChain-1C3C3C?style=flat-square&logo=langchain&logoColor=white)
+![uv](https://img.shields.io/badge/uv-DE5FE9?style=flat-square&logo=uv&logoColor=white)
 
-## Architecture
+</div>
 
-![Architecture](docs/assets/architecture.png)
+---
 
-Layered structure: `api → services → repositories → db`.
+Сервис собирает упоминания темы из нескольких источников, оценивает их
+тональность и эмоции с помощью LLM и сводит результаты в тренды и графики.
 
-- `app/api` — HTTP routes (`topics`, `sources`, `analysis`, `health`)
-- `app/services` — business logic: `analysis`, `sentiment`, `summary`,
-  `search_plan`, `source_fetch`, `metrics`, `topics`, `sources`
-- `app/repositories` — data access (`topics`, `sources`, `analysis`)
-- `app/connectors` — data source adapters, selected via
-  `ConnectorFactory` based on source type
-- `app/core` — settings (`pydantic-settings`) and DI container (`dishka`)
-- `src/db` — a separate package (`digital-barometer-db`) with SQLAlchemy
-  models and Alembic migrations, included as an editable dependency
+Это один из трёх репозиториев системы — общий обзор в
+[профиле группы](https://gitlab.com/digital-barometer):
 
-## Tech Stack
+| | Репозиторий | Назначение |
+| :---: | --- | --- |
+| 🧠 | **backend** (этот) | REST API, сбор данных, LLM-анализ |
+| 📊 | [**frontend**](https://gitlab.com/digital-barometer/frontend) | Веб-интерфейс: темы, источники, графики |
+| 🛠️ | [**infra**](https://gitlab.com/digital-barometer/infra) | Traefik и PostgreSQL |
 
-**Core:** FastAPI, dishka (DI), Pydantic Settings
+## Архитектура
 
-**Data sources:** GDELT Doc API, NewsAPI, RSS feeds, Google Trends (via SerpApi) —
-see [Data sources](#data-sources) below for details
+![Архитектура](docs/assets/architecture.png)
 
-**AI:** LangChain, OpenAI-compatible LLM endpoint — batched sentiment and
-emotion scoring, topic summaries; falls back to a regex-based heuristic when
-the LLM is unavailable
+Слои: `api → services → repositories → db`.
 
-**Database:** PostgreSQL + SQLAlchemy (async) + Alembic
-
-**Infrastructure:** Docker Compose, Traefik (automatic TLS), GitLab CI
-(`test → build → deploy`, staging + production)
-
-## Database Schema
-
-![ERD](docs/assets/db.png)
-
-| Table | Purpose |
+| Каталог | Что внутри |
 | --- | --- |
-| `topics` | Monitored topics and their keywords |
-| `sources` | Configured data sources (GDELT, NewsAPI, RSS, Trends) per topic |
-| `analysis_runs` | A single analysis execution for a topic over a date range |
-| `source_results` | Per-source fetch outcome within a run (status, raw payload, item counts) |
-| `mentions` | Individual mentions collected from sources, with sentiment/emotion scores |
-| `trend_points` | Time-series metrics per source (e.g. Google Trends values) |
-| `analysis_metrics` | Aggregated sentiment/emotion counts and the resulting "barometer" score |
-| `reports` | Generated report files per analysis run |
+| `app/api` | HTTP-роуты: `topics`, `sources`, `analysis`, `health` |
+| `app/services` | Бизнес-логика: `analysis`, `sentiment`, `summary`, `search_plan`, `source_fetch`, `metrics`, `topics`, `sources` |
+| `app/repositories` | Доступ к данным: `topics`, `sources`, `analysis` |
+| `app/connectors` | Адаптеры источников, выбираются через `ConnectorFactory` по типу источника |
+| `app/core` | Настройки (`pydantic-settings`) и DI-контейнер (`dishka`) |
+| `src/db` | Отдельный пакет `digital-barometer-db`: модели SQLAlchemy и миграции Alembic, подключён как editable-зависимость |
 
-## Analysis Flow
+## Как проходит анализ
 
-![Analysis flow](docs/assets/flowchart.png)
+![Схема анализа](docs/assets/flowchart.png)
 
-Sources are fetched concurrently and normalized into a common model
-(`Mention` / `TrendPoint` / `SourceResult`), deduplicated by a SHA-256
-content hash. If the LLM is unavailable, sentiment/emotion scoring falls
-back to a regex-based heuristic instead of failing the run. Each source
-result is tracked independently, so a run can finish as `success`,
-`partial`, or `failed` depending on which sources succeeded.
+Источники опрашиваются параллельно, результаты приводятся к общей модели
+(`Mention` / `TrendPoint` / `SourceResult`) и дедуплицируются по SHA-256
+хешу содержимого. Если LLM недоступна, тональность и эмоции оцениваются
+эвристикой на регулярках, и запуск не падает. Каждый источник
+отслеживается отдельно, поэтому запуск завершается со статусом `success`,
+`partial` или `failed`.
 
-## Data sources
+## Источники данных
 
-| Connector | Source |
+| Коннектор | Источник |
 | --- | --- |
 | `gdelt_doc` | GDELT Doc API |
 | `newsapi` | NewsAPI |
-| RSS | arbitrary RSS feeds |
-| Google Trends | via SerpApi |
+| RSS | произвольные RSS-ленты |
+| Google Trends | через SerpApi |
 
-All requests to sources go through a shared `SOURCE_FETCH_MAX_CONCURRENCY`
-limit and an optional `OUTBOUND_PROXY_URL`. Sensitive data (API keys,
-`Authorization` headers) is stripped from error text before logging
+Все запросы к источникам проходят через общий лимит
+`SOURCE_FETCH_MAX_CONCURRENCY` и, при необходимости, через прокси
+`OUTBOUND_PROXY_URL`. API-ключи и заголовки `Authorization` вычищаются из
+текста ошибок перед логированием
 (`app/services/source_fetch.py:redact_sensitive_text`).
 
-## Endpoints
+## API
 
-`GET /health`,
-`GET /sources`,
-`POST /topics`, `PATCH /topics/{id}`, `GET /topics`,
-`POST /analysis`, `GET /analysis/{id}`, `GET /analysis/{id}/charts`.
+| Метод | Путь | Описание |
+| --- | --- | --- |
+| `GET` | `/health` | Проверка состояния |
+| `GET` | `/sources` | Список доступных источников |
+| `GET` | `/topics` | Список тем |
+| `POST` | `/topics` | Создать тему |
+| `PATCH` | `/topics/{id}` | Изменить тему |
+| `POST` | `/analysis` | Запустить анализ |
+| `GET` | `/analysis/{id}` | Результат анализа |
+| `GET` | `/analysis/{id}/charts` | Данные для графиков |
 
-## Running locally
+Swagger UI доступен по адресу `/docs`.
+
+## База данных
+
+<details>
+<summary>ER-диаграмма и описание таблиц</summary>
+
+![ER-диаграмма](docs/assets/db.png)
+
+| Таблица | Назначение |
+| --- | --- |
+| `topics` | Отслеживаемые темы и их ключевые слова |
+| `sources` | Настроенные источники данных для темы |
+| `analysis_runs` | Один запуск анализа темы за период |
+| `source_results` | Результат опроса источника в рамках запуска |
+| `mentions` | Собранные упоминания с оценками тональности и эмоций |
+| `trend_points` | Временные ряды по источникам (например, Google Trends) |
+| `analysis_metrics` | Агрегированные показатели и итоговый индекс «барометра» |
+| `reports` | Сгенерированные файлы отчётов по запуску |
+
+</details>
+
+## Локальный запуск
 
 ```bash
 cp .env.example .env
@@ -102,43 +114,53 @@ uv run alembic -c src/db/alembic.ini upgrade head
 uv run uvicorn app.main:app --reload --app-dir src --port 8000
 ```
 
-The API is available at `http://localhost:8000`, Swagger UI at `/docs`.
+API будет доступен на `http://localhost:8000`.
 
-Via Docker:
+Через Docker:
 
 ```bash
 cp .env.example .env
 docker compose up --build
 ```
 
-Environment variables (`.env.example`): PostgreSQL connection
-(`POSTGRES_*`), LLM (`OPENAI_API_KEY`, `OPENAI_BASE_URL`, `LANGCHAIN_MODEL`,
-`SENTIMENT_MODEL`, `ANALYSIS_MODEL`, `LLM_*`), data sources (`NEWSAPI_API_KEY`,
-`SERPAPI_API_KEY`), networking (`OUTBOUND_PROXY_URL`, `REQUEST_TIMEOUT_SECONDS`,
-`CORS_ALLOW_ORIGINS`).
+### Переменные окружения
 
-## Tests
+| Группа | Переменные |
+| --- | --- |
+| PostgreSQL | `POSTGRES_*` |
+| LLM | `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `LANGCHAIN_MODEL`, `SENTIMENT_MODEL`, `ANALYSIS_MODEL`, `LLM_*` |
+| Источники | `NEWSAPI_API_KEY`, `SERPAPI_API_KEY` |
+| Сеть | `OUTBOUND_PROXY_URL`, `REQUEST_TIMEOUT_SECONDS`, `CORS_ALLOW_ORIGINS` |
+
+Полный список — в `.env.example`.
+
+## Тесты
 
 ```bash
 uv run python -m unittest discover -s tests
 ```
 
-Covered: connector factory, GDELT connector, metrics and secret redaction
-on source failure, search-plan construction, topic handling.
+Покрыты: фабрика коннекторов, коннектор GDELT, метрики и вычистка секретов
+при ошибках источников, построение плана поиска, работа с темами.
 
-## CI/CD (GitLab)
+## CI/CD
 
-`.gitlab-ci.yml`:
+Пайплайн в `.gitlab-ci.yml`:
 
-1. `test_backend` — `uv sync --frozen` + `unittest discover` against a
-   clean PostgreSQL instance.
-2. `build_image` — builds and pushes three images: API, migrations
-   (`Dockerfile.migrate`), data seeding (`Dockerfile.seed`) (`main`, `stage`
-   branches only).
-3. `deploy_stage` / `deploy_prod` — SSH into the target host,
-   `docker compose pull`, run migrations and seeding, roll out `api`.
+1. **`test_backend`** — `uv sync --frozen` и `unittest discover` на чистом PostgreSQL.
+2. **`build_image`** — собирает и пушит три образа: API, миграции
+   (`Dockerfile.migrate`) и наполнение данными (`Dockerfile.seed`).
+   Только для веток `main` и `stage`.
+3. **`deploy_stage` / `deploy_prod`** — по SSH на целевой хост:
+   `docker compose pull`, миграции, наполнение, выкатка `api`.
 
-Required CI variables: `SSH_PRIVATE_KEY_STAGE`/`SSH_PRIVATE_KEY`,
-`SSH_HOST_STAGE`/`SSH_HOST_PROD`, `SSH_PORT_STAGE`/`SSH_PORT_PROD`,
-`SSH_USER_STAGE`/`SSH_USER_PROD`, `STAGE_ENV_FILE`/`PROD_ENV_FILE`,
-`BASE_DEPLOY_PATH`.
+<details>
+<summary>Переменные CI</summary>
+
+| Окружение | Переменные |
+| --- | --- |
+| staging | `SSH_PRIVATE_KEY_STAGE`, `SSH_HOST_STAGE`, `SSH_PORT_STAGE`, `SSH_USER_STAGE`, `STAGE_ENV_FILE` |
+| production | `SSH_PRIVATE_KEY`, `SSH_HOST_PROD`, `SSH_PORT_PROD`, `SSH_USER_PROD`, `PROD_ENV_FILE` |
+| общие | `BASE_DEPLOY_PATH` |
+
+</details>
