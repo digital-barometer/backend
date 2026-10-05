@@ -1,30 +1,15 @@
-<div align="center">
+# Digital Barometer Backend
 
-<a href="https://gitlab.com/digital-barometer"><img src="https://gitlab.com/uploads/-/system/group/avatar/131474636/logo.png" width="72" alt="Digital Barometer"></a>
+REST API that collects mentions from news and search sources and rates them with an LLM.
 
-# backend
-
-### REST API that collects mentions from news and search sources and rates them with an LLM
-
-![Python](https://img.shields.io/badge/Python_3.12+-3776AB?logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white)
-![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy_·_Alembic-D71F00?logo=sqlalchemy&logoColor=white)
-![LangChain](https://img.shields.io/badge/LangChain-1C3C3C?logo=langchain&logoColor=white)
-![uv](https://img.shields.io/badge/uv-DE5FE9?logo=uv&logoColor=white)
-
-<sub>Part of <a href="https://gitlab.com/digital-barometer"><b>Digital Barometer</b></a></sub>
-
-</div>
-
----
+Stack: Python 3.12+, FastAPI, PostgreSQL, SQLAlchemy, Alembic, LangChain, uv.
 
 ## Role in the system
 
 Given a topic and a period, the backend queries the selected sources in parallel,
 cleans up and deduplicates the results, has an LLM rate each mention's sentiment and
 emotion, and rolls it all into a 0–100 barometer, charts, and short insights for the
-[frontend](https://gitlab.com/digital-barometer/frontend).
+`frontend`.
 
 ```mermaid
 flowchart LR
@@ -77,7 +62,7 @@ Models and Alembic migrations live in a separate package, `digital-barometer-db`
 ## Quick start
 
 You need the `web_network` Docker network, Traefik, and PostgreSQL from
-[infra](https://gitlab.com/digital-barometer/infra).
+`infra`.
 
 ```bash
 cp .env.example .env               # POSTGRES_*, API_PUBLIC_HOST, OPENAI_*, NEWSAPI_API_KEY, SERPAPI_API_KEY
